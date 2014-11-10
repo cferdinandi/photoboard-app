@@ -1,11 +1,5 @@
 <?php
 
-/**
- * plugins-in-training.php
- * These will be plugins down the road.
- */
-
-
 	/**
 	 * Get all post images.
 	 * @param {String} $id ID of the current post
@@ -25,13 +19,14 @@
 		// Generate markup
 		if ($images) {
 			foreach ($images as $image) {
+				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Images\', \'Download\', \'' . get_the_title($image->ID) . '\']);"';
 				$exports .=
 					'<div class="margin-bottom">' .
 						'<div class="text-center">' .
 							'<img class="img-photo" src="' . wp_get_attachment_image_src( $image->ID, 'large' )[0] . '">' .
 						'</div>' .
 						'<p class="text-muted clearfix">' .
-							'<a class="btn float-right" href="' . wp_get_attachment_image_src( $image->ID, 'full' )[0] . '" download>' .
+							'<a class="btn float-right" ' . $track_event . ' href="' . wp_get_attachment_image_src( $image->ID, 'full' )[0] . '" download>' .
 								'<svg class="icon">' .
 									'<use xlink:href="#icon-download"></use>' .
 								'</svg> ' .
@@ -66,6 +61,7 @@
 		// Generate markup
 		if ($videos) {
 			foreach ($videos as $video) {
+				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Videos\', \'Download\', \'' . get_the_title($video->ID) . '\']);"';
 				$exports .=
 					'<div class="margin-bottom">' .
 						'<div class="text-center">' .
@@ -78,7 +74,7 @@
 							'</video>' .
 						'</div>' .
 						'<p class="text-muted clearfix">' .
-							'<a class="btn float-right" href="' . $video->guid . '" download>' .
+							'<a class="btn float-right" ' . $track_event . ' href="' . $video->guid . '" download>' .
 								'<svg class="icon">' .
 								    '<use xlink:href="#icon-download"></use>' .
 								'</svg> ' .
