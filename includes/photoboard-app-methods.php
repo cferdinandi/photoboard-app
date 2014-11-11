@@ -1,14 +1,8 @@
 <?php
 
-/**
- * plugins-in-training.php
- * These will be plugins down the road.
- */
-
-
 	/**
 	 * Get all post images.
-	 * @param {String} $id ID of the current post
+	 * @param number $id ID of the current post
 	 */
 	function photoboard_get_post_imgs($id) {
 
@@ -25,17 +19,21 @@
 		// Generate markup
 		if ($images) {
 			foreach ($images as $image) {
+				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Images\', \'Download\', \'' . get_the_title($image->ID) . '\']);"';
+				$img_large = wp_get_attachment_image_src( $image->ID, 'large' );
+				$img_full = wp_get_attachment_image_src( $image->ID, 'full' );
 				$exports .=
+					'<hr>' .
 					'<div class="margin-bottom">' .
 						'<div class="text-center">' .
-							'<img class="img-photo" src="' . wp_get_attachment_image_src( $image->ID, 'large' )[0] . '">' .
+							'<img class="img-photo" src="' . $img_large[0] . '">' .
 						'</div>' .
 						'<p class="text-muted clearfix">' .
-							'<a class="btn float-right" href="' . wp_get_attachment_image_src( $image->ID, 'full' )[0] . '" download>' .
+							'<a class="btn float-right" ' . $track_event . ' href="' . $img_full[0] . '" download>' .
 								'<svg class="icon">' .
 									'<use xlink:href="#icon-download"></use>' .
 								'</svg> ' .
-								'Download' .
+								'<span class="supporting-text">Download</span>' .
 							'</a>' .
 							$image->post_excerpt .
 						'</p>' .
@@ -47,9 +45,31 @@
 	}
 
 
+
+
+	/**
+	 * Get the thumbnail image for the album
+	 */
+	//
+	function photoboard_get_album_thumbnail( $post_id ) {
+		$format = get_post_meta( $post_id, 'photoboard_post_format', true );
+		if ( $format === 'photos' ) {
+			echo get_the_post_thumbnail( $post_id, 'thumbnail', 'class=img-photo' );
+		} else if ( $format === 'videos' ) {
+			?>
+				<img height="300" width="300" class="img-photo" src="<?php echo get_template_directory_uri(); ?>/dist/img/play.jpg">
+			<?php
+		} else {
+			?>
+				<img height="300" width="300" class="img-photo" src="<?php echo get_template_directory_uri(); ?>/dist/img/blog.jpg">
+			<?php
+		}
+	}
+
+
 	/**
 	 * Get all post images.
-	 * @param {String} $id ID of the current post
+	 * @param number $id ID of the current post
 	 */
 	function photoboard_get_post_vids($id) {
 
@@ -66,7 +86,9 @@
 		// Generate markup
 		if ($videos) {
 			foreach ($videos as $video) {
+				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Videos\', \'Download\', \'' . get_the_title($video->ID) . '\']);"';
 				$exports .=
+
 					'<div class="margin-bottom">' .
 						'<div class="text-center">' .
 							'<video controls preload="auto">'.
@@ -78,11 +100,11 @@
 							'</video>' .
 						'</div>' .
 						'<p class="text-muted clearfix">' .
-							'<a class="btn float-right" href="' . $video->guid . '" download>' .
+							'<a class="btn float-right" ' . $track_event . ' href="' . $video->guid . '" download>' .
 								'<svg class="icon">' .
 								    '<use xlink:href="#icon-download"></use>' .
 								'</svg> ' .
-								'Download' .
+								'<span class="supporting-text">Download</span>' .
 							'</a>' .
 							$video->post_excerpt .
 						'</p>' .
@@ -96,13 +118,19 @@
 
 	/**
 	 * Automatically make the first post image the featured thumbnail
+	 * @param array $post The post being updated
 	 * @link http://stackoverflow.com/a/15605334
 	 * @link https://wordpress.org/plugins/autoset-featured-image/
 	 */
-	function photoboard_auto_set_featured_thumbnail() {
+	function photoboard_auto_set_featured_thumbnail( $post ) {
+
+		// If post is not published or is an autosave, bail
+		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
 
 		// Variables
-		global $post;
+		// global $post;
+		// $post = get_post( $post_id );
+		$post_id = $post->ID;
 		$images = get_children(
 			array(
 				'post_type'      => 'attachment',
@@ -116,21 +144,22 @@
 				'post_type'      => 'attachment',
 				'post_mime_type' => 'video',
 				'post_parent'    => $post->ID,
-				'posts_per_page' => -1,
+				'posts_per_page' => 1,
 			)
 		);
 
 		// Methods
 		if ( $images ) {
 			foreach ($images as $attachment_id => $attachment) {
-				set_post_thumbnail($post->ID, $attachment_id);
+				set_post_thumbnail( $post->ID, $attachment_id );
 			}
+			update_post_meta( $post->ID, 'photoboard_post_format', 'photos' );
 		} elseif ( $videos ) {
-			$video_thumb_id = 92;
-			set_post_thumbnail($post->ID, $video_thumb_id);
+			delete_post_thumbnail($post->ID);
+			update_post_meta( $post->ID, 'photoboard_post_format', 'videos' );
 		} else {
-			$story_thumb_id = 91;
-			set_post_thumbnail($post->ID, $story_thumb_id);
+			delete_post_thumbnail($post->ID);
+			update_post_meta( $post->ID, 'photoboard_post_format', 'article' );
 		}
 
 	}
@@ -145,47 +174,52 @@
 
 	/**
 	 * Notify members of new post by email
+	 * @param array $post The post being updated
 	 */
-	function photoboard_new_post_email() {
+	function photoboard_new_post_email( $post ) {
+
+		// If post is not published or is an autosave, bail
+		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
 
 		// Variables
-		global $post;
-		$author = $post->post_author;
+		$author = intval($post->post_author);
 		$post_id = $post->ID;
 		$users = get_users();
-		// $user->user_email
+		$headers = Array();
 
 		// Loop through each user
 		foreach ($users as $user) {
 
 			// User variables
-			$user_id = $user->ID;
+			$user_id = intval($user->ID);
 			$email = $user->user_email;
 			$notifications = get_user_meta($user_id, 'photoboard_get_notifications', 'true');
 
-			// Email variables
-			$to = $email;
-			$subject = 'New photos on Photoboard: ' . get_the_title( $post_id );
-			$message =
-				'Someone posted new photos or videos on Photoboard. Click here to view them: ' . get_permalink( $post_id) . "\r\n\r\n" .
-				'To stop receiving these emails, visit ' . site_url() . '/notifications' . "\r\n";
-			$headers = 'From: Photoboard <notifications@' . site_url() . '>' . "\r\n";
-
 			// Don't send notification to post author
-			if ( $user_id === $author ) return;
+			if ( $user_id === $author || $notifications === 'off' ) continue;
 
-			// Send email
-			if ( $notifications !== 'off' ) {
-				wp_mail( $to, $subject, $message, $headers );
-			}
+			// Add user to email list
+			$headers[] = 'Bcc: ' . $email;
+
 		}
 
+		// Email variables
+		$to = 'Our Family Photoboard <notifications@' . photoboard_get_site_domain() . '>';
+		$subject = 'New photos on Photoboard: ' . get_the_title( $post_id );
+		$message =
+			'Someone posted new photos or videos on Photoboard. Click here to view them: ' . get_permalink( $post_id) . "\r\n\r\n" .
+			'To stop receiving these emails, visit ' . site_url() . '/notifications' . "\r\n";
+		$headers[] = 'From: Our Family Photoboard <notifications@' . photoboard_get_site_domain() . '>';
+
+		// Send email
+		wp_mail( $to, $subject, $message, $headers );
+
 	}
-	add_action('save_post', 'photoboard_auto_set_featured_thumbnail');
-	add_action('draft_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	add_action('new_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	add_action('pending_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	add_action('future_to_publish', 'photoboard_auto_set_featured_thumbnail');
+	add_action('save_post', 'photoboard_new_post_email');
+	add_action('draft_to_publish', 'photoboard_new_post_email');
+	add_action('new_to_publish', 'photoboard_new_post_email');
+	add_action('pending_to_publish', 'photoboard_new_post_email');
+	add_action('future_to_publish', 'photoboard_new_post_email');
 
 
 
@@ -271,49 +305,54 @@
 
 	/**
 	 * Create a zip file of all photos
-	 * @link http://davidwalsh.name/create-zip-php
 	 * @param  array   $files       Files to compress
 	 * @param  string  $destination Destination to save the file
 	 * @param  boolean $overwrite   If true, overwrites existing file with same name
 	 * @return string              	File name/destination
+	 * @link http://davidwalsh.name/create-zip-php
 	 */
-	function photoboard_create_zip($files = array(),$destination = '',$overwrite = false) {
-		//if the zip file already exists and overwrite is false, return false
-		if(file_exists($destination) && !$overwrite) { return false; }
-		//vars
+	function photoboard_create_zip($files = array(), $destination = '', $overwrite = false) {
+
+		// If the zip file already exists and overwrite is false, return false
+		if ( file_exists( $destination ) && !$overwrite ) return false;
+
+		// Variables
 		$valid_files = array();
-		//if files were passed in...
-		if(is_array($files)) {
-			//cycle through each file
-			foreach($files as $file) {
-				//make sure the file exists
-				if(file_exists($file)) {
+
+		// If files were passed in, cylcle through each file
+		if ( is_array( $files ) ) {
+			foreach ( $files as $file ) {
+				if ( file_exists( $file ) ) {
 					$valid_files[] = $file;
 				}
 			}
 		}
-		//if we have good files...
-		if(count($valid_files)) {
-			//create the archive
+
+		//if we have good files, create the archive
+		if ( count( $valid_files ) ) {
+
 			$zip = new ZipArchive();
-			if($zip->open($destination,$overwrite ? ZIPARCHIVE::OVERWRITE : ZIPARCHIVE::CREATE) !== true) {
+
+			// If non-overwriteable and file already exists, stop
+			if ( $zip->open( $destination, $overwrite ? ZIPARCHIVE::OVERWRITE : ZIPARCHIVE::CREATE ) !== true ) {
 				return false;
 			}
-			//add the files
-			foreach($valid_files as $file) {
-				$zip->addFile($file,$file);
-			}
-			//debug
-			//echo 'The zip archive contains ',$zip->numFiles,' files with a status of ',$zip->status;
 
-			//close the zip -- done!
+			// Add the files to the zip
+			foreach ( $valid_files as $file ) {
+				$zip->addFile( $file, basename( $file ) );
+			}
+
+			// Set filename to variable
+			$export = $zip->filename;
+
+			// Close the zip -- done!
 			$zip->close();
 
-			//check to make sure the file exists
-			return file_exists($destination);
-		}
-		else
-		{
+			// Return the filename
+			return $export;
+
+		} else {
 			return false;
 		}
 	}
@@ -322,27 +361,62 @@
 
 
 	/**
-	 * When a new post is created, generate a zip of all media
+	 * Add file to Media library
+	 * @param string $filename Path to file
+	 * @param number $parent_post_id ID of the post to attach file to
 	 */
-	function photoboard_create_zip_on_save() {
+	function photoboard_add_file_to_media_library( $filename, $parent_post_id = 0 ) {
+
+		// Includes
+		require_once( ABSPATH . 'wp-admin/includes/image.php' );
 
 		// Variables
-		global $post;
-		$wp_upload_directory = wp_upload_dir();
+		$filetype = wp_check_filetype( basename( $filename ), null ); // Get MIME type
+		$wp_upload_dir = wp_upload_dir();
+		$attachment = array(
+			'guid'           => $wp_upload_dir['url'] . '/' . basename( $filename ),
+			'post_mime_type' => $filetype['type'],
+			'post_title'     => preg_replace( '/\.[^.]+$/', '', basename( $filename ) ),
+			'post_content'   => '',
+			'post_status'    => 'inherit'
+		);
+
+		// Insert the attachment and generate metadata
+		$attach_id = wp_insert_attachment( $attachment, $filename, $parent_post_id );
+		$attach_data = wp_generate_attachment_metadata( $attach_id, $filename );
+		wp_update_attachment_metadata( $attach_id, $attach_data );
+
+		return $attach_id;
+	}
+
+
+
+
+	/**
+	 * When a new post is created, generate a zip of all media
+	 * @param number $post_id ID of the current post
+	 */
+	function photoboard_create_zip_on_save( $post ) {
+
+		// If post is not published or is an autosave, bail
+		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
+
+		// Variables
+		$post_id = $post->ID;
 		$files_to_zip = array();
 		$images = get_children(
 			array(
 				'post_type'      => 'attachment',
 				'post_mime_type' => 'image',
 				'post_parent'    => $post->ID,
-				'posts_per_page' => 1,
+				'posts_per_page' => -1,
 			)
 		);
 		$videos = get_children(
 			array(
 				'post_type'      => 'attachment',
 				'post_mime_type' => 'video',
-				'post_parent'    => $id,
+				'post_parent'    => $post->ID,
 				'posts_per_page' => -1,
 			)
 		);
@@ -350,18 +424,32 @@
 		// Push files to array
 		if ($images) {
 			foreach ($images as $image) {
-				$files_to_zip[] = wp_get_attachment_image_src( $image->ID, 'full' )[0];
+				/*$img_src = wp_get_attachment_image_src( $image->ID, 'full' );
+				$files_to_zip[] = $img_src[0];*/
+				$files_to_zip[] = get_attached_file( $image->ID );
 			}
 		}
 
 		if ($videos) {
 			foreach ($videos as $video) {
-				$files_to_zip[] = $video->guid;
+				// $files_to_zip[] = $video->guid;
+				$files_to_zip[] = get_attached_file( $video->ID );
 			}
 		}
 
 		// Create zip
-		photoboard_create_zip($files_to_zip, $wp_upload_directory[baseurl] . '/photoboard/' . $post->post_name . '.zip', true);
+		$upload_dir = wp_upload_dir();
+		$existing_zip = get_post_meta( $post->ID, 'photoboard_download_zip', true);
+		$new_zip = photoboard_create_zip($files_to_zip, $upload_dir['path'] . '/' . $post->post_name . '.zip', true);
+
+		// Add to media library and post
+		$media = photoboard_add_file_to_media_library( $new_zip );
+		update_post_meta( $post->ID, 'photoboard_download_zip', $media);
+
+		// Delete old zip from media library
+		if ( !empty($media) && !empty($existing_zip) ) {
+			wp_delete_attachment( $existing_zip, true );
+		}
 
 	}
 	add_action('save_post', 'photoboard_create_zip_on_save');
@@ -369,15 +457,3 @@
 	add_action('new_to_publish', 'photoboard_create_zip_on_save');
 	add_action('pending_to_publish', 'photoboard_create_zip_on_save');
 	add_action('future_to_publish', 'photoboard_create_zip_on_save');
-
-
-
-
-	/**
-	 * Get URL of post media zip file
-	 */
-	function photoboard_get_zip_file() {
-		global $post;
-		$wp_upload_directory = wp_upload_dir();
-		return $wp_upload_directory[baseurl] . '/photoboard/' . $post->post_name . '.zip';
-	}
