@@ -23,8 +23,7 @@
 				$img_large = wp_get_attachment_image_src( $image->ID, 'large' );
 				$img_full = wp_get_attachment_image_src( $image->ID, 'full' );
 				$exports .=
-					'<hr>' .
-					'<div class="margin-bottom">' .
+					'<div class="margin-bottom hero hero-condensed">' .
 						'<div class="text-center">' .
 							'<img class="img-photo" src="' . $img_large[0] . '">' .
 						'</div>' .
@@ -88,8 +87,7 @@
 			foreach ($videos as $video) {
 				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Videos\', \'Download\', \'' . get_the_title($video->ID) . '\']);"';
 				$exports .=
-
-					'<div class="margin-bottom">' .
+					'<div class="margin-bottom hero hero-condensed">' .
 						'<div class="text-center">' .
 							'<video controls preload="auto">'.
 								'<source type="video/mp4" src="' . $video->guid . '">' .
