@@ -53,7 +53,20 @@
 	function photoboard_get_album_thumbnail( $post_id ) {
 		$format = get_post_meta( $post_id, 'photoboard_post_format', true );
 		if ( $format === 'photos' ) {
-			echo get_the_post_thumbnail( $post_id, 'thumbnail', 'class=img-photo' );
+			if ( has_post_thumbnail( $post_id ) ) {
+				echo get_the_post_thumbnail( $post_id, 'thumbnail', 'class=img-photo' );
+			} else {
+				$image = get_children(
+					array(
+						'post_type'      => 'attachment',
+						'post_mime_type' => 'image',
+						'post_parent'    => $id,
+						'posts_per_page' => 1,
+					)
+				);
+				$img_thumb = wp_get_attachment_image_src( $image[0]->ID, 'thumbnail' );
+				echo '<img class="img-photo" src="' . $img_thumb[0] . '">' ;
+			}
 		} else if ( $format === 'videos' ) {
 			?>
 				<img height="300" width="300" class="img-photo" src="<?php echo get_template_directory_uri(); ?>/dist/img/play.jpg">
@@ -120,7 +133,58 @@
 	 * @link http://stackoverflow.com/a/15605334
 	 * @link https://wordpress.org/plugins/autoset-featured-image/
 	 */
-	function photoboard_auto_set_featured_thumbnail( $post ) {
+	// function photoboard_auto_set_featured_thumbnail( $post ) {
+
+	// 	// If post is not published or is an autosave, bail
+	// 	if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
+
+	// 	// Variables
+	// 	// global $post;
+	// 	// $post = get_post( $post_id );
+	// 	$post_id = $post->ID;
+	// 	$images = get_children(
+	// 		array(
+	// 			'post_type'      => 'attachment',
+	// 			'post_mime_type' => 'image',
+	// 			'post_parent'    => $post->ID,
+	// 			'posts_per_page' => 1,
+	// 		)
+	// 	);
+	// 	$videos = get_children(
+	// 		array(
+	// 			'post_type'      => 'attachment',
+	// 			'post_mime_type' => 'video',
+	// 			'post_parent'    => $post->ID,
+	// 			'posts_per_page' => 1,
+	// 		)
+	// 	);
+
+	// 	// Methods
+	// 	if ( $images ) {
+	// 		foreach ($images as $attachment_id => $attachment) {
+	// 			set_post_thumbnail( $post->ID, $attachment_id );
+	// 		}
+	// 		update_post_meta( $post->ID, 'photoboard_post_format', 'photos' );
+	// 	} elseif ( $videos ) {
+	// 		delete_post_thumbnail($post->ID);
+	// 		update_post_meta( $post->ID, 'photoboard_post_format', 'videos' );
+	// 	} else {
+	// 		delete_post_thumbnail($post->ID);
+	// 		update_post_meta( $post->ID, 'photoboard_post_format', 'article' );
+	// 	}
+
+	// }
+	// add_action('save_post', 'photoboard_auto_set_featured_thumbnail');
+	// add_action('draft_to_publish', 'photoboard_auto_set_featured_thumbnail');
+	// add_action('new_to_publish', 'photoboard_auto_set_featured_thumbnail');
+	// add_action('pending_to_publish', 'photoboard_auto_set_featured_thumbnail');
+	// add_action('future_to_publish', 'photoboard_auto_set_featured_thumbnail');
+
+	/**
+	 * Set post type on save
+	 * @param array $post The post being updated
+	 */
+	function photoboard_set_post_type_on_save( $post ) {
 
 		// If post is not published or is an autosave, bail
 		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
@@ -148,24 +212,19 @@
 
 		// Methods
 		if ( $images ) {
-			foreach ($images as $attachment_id => $attachment) {
-				set_post_thumbnail( $post->ID, $attachment_id );
-			}
 			update_post_meta( $post->ID, 'photoboard_post_format', 'photos' );
 		} elseif ( $videos ) {
-			delete_post_thumbnail($post->ID);
 			update_post_meta( $post->ID, 'photoboard_post_format', 'videos' );
 		} else {
-			delete_post_thumbnail($post->ID);
 			update_post_meta( $post->ID, 'photoboard_post_format', 'article' );
 		}
 
 	}
-	add_action('save_post', 'photoboard_auto_set_featured_thumbnail');
-	add_action('draft_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	add_action('new_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	add_action('pending_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	add_action('future_to_publish', 'photoboard_auto_set_featured_thumbnail');
+	add_action('save_post', 'photoboard_set_post_type_on_save');
+	add_action('draft_to_publish', 'photoboard_set_post_type_on_save');
+	add_action('new_to_publish', 'photoboard_set_post_type_on_save');
+	add_action('pending_to_publish', 'photoboard_set_post_type_on_save');
+	add_action('future_to_publish', 'photoboard_set_post_type_on_save');
 
 
 
