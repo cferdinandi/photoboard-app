@@ -56,15 +56,17 @@
 			if ( has_post_thumbnail( $post_id ) ) {
 				echo get_the_post_thumbnail( $post_id, 'thumbnail', 'class=img-photo' );
 			} else {
-				$image = get_children(
+				$images = get_children(
 					array(
 						'post_type'      => 'attachment',
 						'post_mime_type' => 'image',
-						'post_parent'    => $id,
+						'post_parent'    => $post_id,
 						'posts_per_page' => 1,
 					)
 				);
-				$img_thumb = wp_get_attachment_image_src( $image[0]->ID, 'thumbnail' );
+				foreach ($images as $img) {
+					$img_thumb = wp_get_attachment_image_src( $img->ID, 'thumbnail' );
+				}
 				echo '<img class="img-photo" src="' . $img_thumb[0] . '">' ;
 			}
 		} else if ( $format === 'videos' ) {
@@ -104,10 +106,7 @@
 						'<div class="text-center">' .
 							'<video controls preload="auto">'.
 								'<source type="video/mp4" src="' . $video->guid . '">' .
-								'<div class="flowplayer">' .
-									'<source type="video/mp4" src="' . $video->guid . '">' .
-								'</div>' .
-								'<p><a target="_blank" href="' . $video->guid . '">Download the Video</a></p>' .
+								'<p>Your browser will not play this video. <a' . $track_event . ' href="' . $video->guid . '" download>Download to Watch</a></p>' .
 							'</video>' .
 						'</div>' .
 						'<p class="text-muted clearfix">' .
