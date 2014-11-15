@@ -8,6 +8,8 @@ App functionality for Photoboard
 
 Keel uses [semantic versioning](http://semver.org/).
 
+* v1.0.4 - November 15, 2014
+	* Fixed auto-thumbnail bug.
 * v1.0.3 - November 11, 2014
 	* Don't run "on post" tasks on autosave.
 	* Associate zip file with it's parent post.
