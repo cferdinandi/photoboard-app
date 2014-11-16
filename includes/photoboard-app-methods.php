@@ -14,12 +14,12 @@
 		foreach ($groups as $group) {
 			$is_in_group = is_object_in_term( $user_id, 'user-group', $group->slug );
 			$group_has_access = $visibility[$group->slug];
-			if ( $is_in_group && $group_has_access !== 'no' ) {
-				return true;
+			if ( $is_in_group && $group_has_access === 'no' ) {
+				return false;
 			}
 		}
 
-		return false;
+		return true;
 
 	}
 
