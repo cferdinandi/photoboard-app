@@ -24,9 +24,9 @@
 				$img_large = wp_get_attachment_image_src( $image->ID, 'large' );
 				$img_full = wp_get_attachment_image_src( $image->ID, 'full' );
 				$exports .=
-					'<div class="margin-bottom hero hero-condensed">' .
-						'<div class="text-center">' .
-							'<img class="img-photo" src="' . $img_large[0] . '">' .
+					'<div class="margin-bottom img-photo">' .
+						'<div class="text-center margin-bottom-small">' .
+							'<img src="' . $img_large[0] . '">' .
 						'</div>' .
 						'<p class="text-muted clearfix">' .
 							'<a class="btn float-right" ' . $track_event . ' href="' . $img_full[0] . '" download>' .
@@ -103,9 +103,9 @@
 			foreach ($videos as $video) {
 				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Videos\', \'Download\', \'' . get_the_title($video->ID) . '\']);"';
 				$exports .=
-					'<div class="margin-bottom hero hero-condensed">' .
+					'<div class="margin-bottom img-photo">' .
 						'<div class="text-center">' .
-							'<video controls preload="auto">'.
+							'<video clsas="margin-bottom-small" controls preload="auto">'.
 								'<source type="video/mp4" src="' . $video->guid . '">' .
 								'<p>Your browser will not play this video. <a' . $track_event . ' href="' . $video->guid . '" download>Download to Watch</a></p>' .
 							'</video>' .
