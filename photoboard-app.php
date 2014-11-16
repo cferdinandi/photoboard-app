@@ -4,7 +4,7 @@
  * Plugin Name: Photoboard App
  * Plugin URI: https://github.com/cferdinandi/photoboard-app
  * Description: Functions for the Photoboard app.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Chris Ferdinandi
  * Author URI: http://gomakethings.com
  * License: All Rights Reserved

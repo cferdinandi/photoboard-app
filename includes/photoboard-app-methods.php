@@ -1,6 +1,30 @@
 <?php
 
 	/**
+	 * Check if user can view content
+	 */
+	function photoboard_can_user_view( $user_id, $media_id ) {
+
+		// Variables
+		$user_id = ( empty($user_id) ? get_current_user_id() : $user_id );
+		$groups = get_terms( 'user-group' );
+		$visibility = get_post_meta($media_id, 'photoboard_img_visibility', true);
+
+		// If user is in group without access, return false
+		foreach ($groups as $group) {
+			$is_in_group = is_object_in_term( $user_id, 'user-group', $group->slug );
+			$group_has_access = $visibility[$group->slug];
+			if ( $is_in_group && $group_has_access !== 'no' ) {
+				return true;
+			}
+		}
+
+		return false;
+
+	}
+
+
+	/**
 	 * Get all post images.
 	 * @param number $id ID of the current post
 	 */
@@ -18,11 +42,23 @@
 
 		// Generate markup
 		if ($images) {
+
+			// Variables
+			$user_id = get_current_user_id();
 			$exports = '';
+
 			foreach ($images as $image) {
+
+				// Variables
 				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Images\', \'Download\', \'' . get_the_title($image->ID) . '\']);"';
 				$img_large = wp_get_attachment_image_src( $image->ID, 'large' );
 				$img_full = wp_get_attachment_image_src( $image->ID, 'full' );
+				$user_can_view = photoboard_can_user_view( $user_id, $image->ID );
+
+				// If user doesn't have access, skip to the next photo
+				if ( !$user_can_view && !current_user_can( 'edit_files' ) ) continue;
+
+				// Markup
 				$exports .=
 					'<div class="margin-bottom img-photo">' .
 						'<div class="text-center margin-bottom-small">' .
@@ -36,6 +72,65 @@
 								'<span class="supporting-text">Download</span>' .
 							'</a>' .
 							$image->post_excerpt .
+						'</p>' .
+					'</div>';
+			}
+			return $exports;
+		}
+
+	}
+
+
+
+
+	/**
+	 * Get all post images.
+	 * @param number $id ID of the current post
+	 */
+	function photoboard_get_post_vids($id) {
+
+		// Get all videos
+		$videos = get_children(
+			array(
+				'post_type'      => 'attachment',
+				'post_mime_type' => 'video',
+				'post_parent'    => $id,
+				'posts_per_page' => -1,
+			)
+		);
+
+		// Generate markup
+		if ($videos) {
+
+			// Variables
+			$user_id = get_current_user_id();
+			$exports = '';
+
+			foreach ($videos as $video) {
+
+				// Variables
+				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Videos\', \'Download\', \'' . get_the_title($video->ID) . '\']);"';
+				$user_can_view = photoboard_can_user_view( $user_id, $video->ID );
+
+				// If user doesn't have access, skip to the next video
+				if ( !$user_can_view && !current_user_can( 'edit_files' ) ) continue;
+
+				$exports .=
+					'<div class="margin-bottom img-photo">' .
+						'<div class="text-center">' .
+							'<video clsas="margin-bottom-small" controls preload="auto">'.
+								'<source type="video/mp4" src="' . $video->guid . '">' .
+								'<p>Your browser will not play this video. <a' . $track_event . ' href="' . $video->guid . '" download>Download to Watch</a></p>' .
+							'</video>' .
+						'</div>' .
+						'<p class="text-muted clearfix">' .
+							'<a class="btn float-right" ' . $track_event . ' href="' . $video->guid . '" download>' .
+								'<svg class="icon">' .
+									'<use xlink:href="#icon-download"></use>' .
+								'</svg> ' .
+								'<span class="supporting-text">Download</span>' .
+							'</a>' .
+							$video->post_excerpt .
 						'</p>' .
 					'</div>';
 			}
@@ -82,50 +177,6 @@
 	}
 
 
-	/**
-	 * Get all post images.
-	 * @param number $id ID of the current post
-	 */
-	function photoboard_get_post_vids($id) {
-
-		// Get all videos
-		$videos = get_children(
-			array(
-				'post_type'      => 'attachment',
-				'post_mime_type' => 'video',
-				'post_parent'    => $id,
-				'posts_per_page' => -1,
-			)
-		);
-
-		// Generate markup
-		if ($videos) {
-			foreach ($videos as $video) {
-				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Videos\', \'Download\', \'' . get_the_title($video->ID) . '\']);"';
-				$exports .=
-					'<div class="margin-bottom img-photo">' .
-						'<div class="text-center">' .
-							'<video clsas="margin-bottom-small" controls preload="auto">'.
-								'<source type="video/mp4" src="' . $video->guid . '">' .
-								'<p>Your browser will not play this video. <a' . $track_event . ' href="' . $video->guid . '" download>Download to Watch</a></p>' .
-							'</video>' .
-						'</div>' .
-						'<p class="text-muted clearfix">' .
-							'<a class="btn float-right" ' . $track_event . ' href="' . $video->guid . '" download>' .
-								'<svg class="icon">' .
-								    '<use xlink:href="#icon-download"></use>' .
-								'</svg> ' .
-								'<span class="supporting-text">Download</span>' .
-							'</a>' .
-							$video->post_excerpt .
-						'</p>' .
-					'</div>';
-			}
-			return $exports;
-		}
-
-	}
-
 
 
 	/**
@@ -138,8 +189,6 @@
 		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
 
 		// Variables
-		// global $post;
-		// $post = get_post( $post_id );
 		$post_id = $post->ID;
 		$images = get_children(
 			array(
@@ -506,3 +555,76 @@
 
 	}
 	add_action('delete_attachment', 'photoboard_remove_zip_file_on_delete');
+
+
+
+
+	/**
+	 * Add checkboxes to assign photo visibility by group
+	 * @param array $form_fields Form fields settings
+	 * @param object $post The attachment
+	 * @return object The update form fields
+	 */
+	function photoboard_add_photo_visibility_checkbox($form_fields, $post) {
+
+		// Get groups and visibility settings
+		$img_visibility = get_post_meta($post->ID, 'photoboard_img_visibility', true);
+		$groups = get_terms( 'user-group' );
+		$html = '';
+
+		// Create a checkbox for each group
+		foreach ($groups as $group) {
+			$group_id = $group->slug;
+			$group_name = $group->name;
+			$checked = ( $img_visibility[$group_id] === 'no' ? '' : 'checked' );
+			$html .=
+				'<label class="setting">' .
+					'<input type="checkbox" name="attachments[' . $post->ID . '][' . $group_id . ']" value="1" style="float: left;" ' . $checked . '>' .
+					'<span class="name">' . $group_name . '</span>' .
+				'</label>';
+		}
+
+		$form_fields['visibility'] = array(
+			'label' => __('Visibility', 'photoboard'),
+			'input' => 'html',
+			'html'  => $html,
+			// 'helps' => __('Control photo visibility', 'photoboard'),
+		);
+
+		return $form_fields;
+
+	}
+	add_filter('attachment_fields_to_edit', 'photoboard_add_photo_visibility_checkbox', null, 2);
+
+
+
+
+	/**
+	 * Save photo visibility by group
+	 * @param object $post The attachment
+	 * @param object $attachment The attachment ID
+	 * @return object The post
+	 */
+	function photoboard_save_photo_visibility($post, $attachment) {
+
+		// Get groups and visibility settings
+		$img_visibility = Array();
+		$groups = get_terms( 'user-group' );
+
+		// For each checkbox, set visibility
+		foreach ($groups as $group) {
+			$group_id = $group->slug;
+			$group_name = $group->name;
+			if ( isset( $attachment[$group_id] ) ) {
+				$img_visibility[$group_id] = 'yes';
+			} else {
+				$img_visibility[$group_id] = 'no';
+			}
+		}
+
+		// Save changes to database
+		update_post_meta($post['ID'], 'photoboard_img_visibility', $img_visibility);
+		return $post;
+
+	}
+	add_filter('attachment_fields_to_save', 'photoboard_save_photo_visibility', null , 2);
