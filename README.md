@@ -8,6 +8,11 @@ App functionality for Photoboard
 
 Keel uses [semantic versioning](http://semver.org/).
 
+* v1.0.6 - November 15, 2014
+	* Attach zip directly to post for easier maintainance.
+	* Add and remove files from zip rather than generating entire new one.
+* v1.0.5 - November 15, 2014
+	* Stop running notifications and new zips on update.
 * v1.0.4 - November 15, 2014
 	* Fixed auto-thumbnail bug.
 * v1.0.3 - November 11, 2014

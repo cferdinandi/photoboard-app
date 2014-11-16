@@ -18,6 +18,7 @@
 
 		// Generate markup
 		if ($images) {
+			$exports = '';
 			foreach ($images as $image) {
 				$track_event = 'onClick="_gaq.push([\'_trackEvent\', \'Images\', \'Download\', \'' . get_the_title($image->ID) . '\']);"';
 				$img_large = wp_get_attachment_image_src( $image->ID, 'large' );
@@ -126,58 +127,6 @@
 	}
 
 
-	/**
-	 * Automatically make the first post image the featured thumbnail
-	 * @param array $post The post being updated
-	 * @link http://stackoverflow.com/a/15605334
-	 * @link https://wordpress.org/plugins/autoset-featured-image/
-	 */
-	// function photoboard_auto_set_featured_thumbnail( $post ) {
-
-	// 	// If post is not published or is an autosave, bail
-	// 	if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
-
-	// 	// Variables
-	// 	// global $post;
-	// 	// $post = get_post( $post_id );
-	// 	$post_id = $post->ID;
-	// 	$images = get_children(
-	// 		array(
-	// 			'post_type'      => 'attachment',
-	// 			'post_mime_type' => 'image',
-	// 			'post_parent'    => $post->ID,
-	// 			'posts_per_page' => 1,
-	// 		)
-	// 	);
-	// 	$videos = get_children(
-	// 		array(
-	// 			'post_type'      => 'attachment',
-	// 			'post_mime_type' => 'video',
-	// 			'post_parent'    => $post->ID,
-	// 			'posts_per_page' => 1,
-	// 		)
-	// 	);
-
-	// 	// Methods
-	// 	if ( $images ) {
-	// 		foreach ($images as $attachment_id => $attachment) {
-	// 			set_post_thumbnail( $post->ID, $attachment_id );
-	// 		}
-	// 		update_post_meta( $post->ID, 'photoboard_post_format', 'photos' );
-	// 	} elseif ( $videos ) {
-	// 		delete_post_thumbnail($post->ID);
-	// 		update_post_meta( $post->ID, 'photoboard_post_format', 'videos' );
-	// 	} else {
-	// 		delete_post_thumbnail($post->ID);
-	// 		update_post_meta( $post->ID, 'photoboard_post_format', 'article' );
-	// 	}
-
-	// }
-	// add_action('save_post', 'photoboard_auto_set_featured_thumbnail');
-	// add_action('draft_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	// add_action('new_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	// add_action('pending_to_publish', 'photoboard_auto_set_featured_thumbnail');
-	// add_action('future_to_publish', 'photoboard_auto_set_featured_thumbnail');
 
 	/**
 	 * Set post type on save
@@ -234,8 +183,8 @@
 	 */
 	function photoboard_new_post_email( $post ) {
 
-		// If post is not published or is an autosave, bail
-		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
+		// If post is not published, bail
+		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' ) return;
 
 		// Variables
 		$author = intval($post->post_author);
@@ -271,7 +220,7 @@
 		wp_mail( $to, $subject, $message, $headers );
 
 	}
-	add_action('save_post', 'photoboard_new_post_email');
+	// add_action('save_post', 'photoboard_new_post_email');
 	add_action('draft_to_publish', 'photoboard_new_post_email');
 	add_action('new_to_publish', 'photoboard_new_post_email');
 	add_action('pending_to_publish', 'photoboard_new_post_email');
@@ -454,11 +403,12 @@
 	 */
 	function photoboard_create_zip_on_save( $post ) {
 
-		// If post is not published or is an autosave, bail
-		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' || wp_is_post_autosave( $post->ID ) ) return;
+		// If post is not published, bail
+		if ( get_post_type( $post->ID ) !== 'post' || get_post_status( $post->ID ) !== 'publish' ) return;
 
 		// Variables
 		$post_id = $post->ID;
+		$upload_dir = wp_upload_dir();
 		$files_to_zip = array();
 		$images = get_children(
 			array(
@@ -493,23 +443,66 @@
 			}
 		}
 
-		// Create zip
-		$upload_dir = wp_upload_dir();
-		$existing_zip = get_post_meta( $post->ID, 'photoboard_download_zip', true);
+		// Create zip, add to media library, and set post meta data
 		$new_zip = photoboard_create_zip($files_to_zip, $upload_dir['path'] . '/' . $post->post_name . '.zip', true);
-
-		// Add to media library and post
-		$media = photoboard_add_file_to_media_library( $new_zip );
+		$media = photoboard_add_file_to_media_library( $new_zip, $post->ID );
 		update_post_meta( $post->ID, 'photoboard_download_zip', $media);
 
-		// Delete old zip from media library
-		if ( !empty($media) && !empty($existing_zip) ) {
-			wp_delete_attachment( $existing_zip, true );
-		}
-
 	}
-	add_action('save_post', 'photoboard_create_zip_on_save');
+	// add_action('save_post', 'photoboard_create_zip_on_save');
 	add_action('draft_to_publish', 'photoboard_create_zip_on_save');
 	add_action('new_to_publish', 'photoboard_create_zip_on_save');
 	add_action('pending_to_publish', 'photoboard_create_zip_on_save');
 	add_action('future_to_publish', 'photoboard_create_zip_on_save');
+
+
+
+
+	/**
+	 * Add new file to zip when added to post
+	 */
+	function photoboard_add_new_zip_file_on_update( $id ) {
+
+		// Variables
+		$file = get_attached_file( $id );
+		$parent = wp_get_post_parent_id( $id );
+		$zip_url = get_attached_file( get_post_meta( $parent, 'photoboard_download_zip', true ) );
+
+		// If post is not published, bail
+		if ( get_post_type( $parent ) !== 'post' || get_post_status( $parent ) !== 'publish' || get_post_mime_type( $id ) === 'application/zip' || !$zip_url ) return;
+
+		// Add to zip
+		$zip = new ZipArchive;
+		if ($zip->open($zip_url) === TRUE) {
+			$zip->addFile( $file, basename( $file ) );
+			$zip->close();
+		}
+
+	}
+	add_action('add_attachment', 'photoboard_add_new_zip_file_on_update');
+
+
+
+
+	/**
+	 * Delete file from zip when removed from post
+	 */
+	function photoboard_remove_zip_file_on_delete( $id ) {
+
+		// Variables
+		$file = get_attached_file( $id );
+		$parent = wp_get_post_parent_id( $id );
+		$zip_url = get_attached_file( get_post_meta( $parent, 'photoboard_download_zip', true ) );
+
+		// If post is not published, bail
+		if ( get_post_type( $parent ) !== 'post' || get_post_status( $parent ) !== 'publish' || get_post_mime_type( $id ) === 'application/zip' || !$zip_url ) return;
+
+		// Remove from zip
+		$zip = new ZipArchive;
+		if ($zip->open($zip_url) === TRUE) {
+			$zip->deleteName( basename( $file ) );
+			$zip->close();
+		}
+
+	}
+	add_action('delete_attachment', 'photoboard_remove_zip_file_on_delete');
