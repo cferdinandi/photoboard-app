@@ -8,6 +8,8 @@ App functionality for Photoboard
 
 Keel uses [semantic versioning](http://semver.org/).
 
+* v1.3.0 - November 16, 2014
+	* Notifications off by default.
 * v1.2.0 - November 16, 2014
 	* Added ability to hide photos and videos by group.
 * v1.1.0 - November 16, 2014

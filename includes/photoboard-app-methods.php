@@ -250,7 +250,7 @@
 			$notifications = get_user_meta($user_id, 'photoboard_get_notifications', 'true');
 
 			// Don't send notification to post author
-			if ( $user_id === $author || $notifications === 'off' ) continue;
+			if ( $user_id === $author || $notifications !== 'on' ) continue;
 
 			// Add user to email list
 			$headers[] = 'Bcc: ' . $email;
@@ -289,7 +289,7 @@
 			global $current_user;
 			$user_id = $current_user->ID;
 			$notifications = get_user_meta($user_id, 'photoboard_get_notifications', 'true');
-			$checked = ( $notifications !== 'off' ? 'checked' : '');
+			$checked = ( $notifications === 'on' ? 'checked' : '');
 
 			// Alert
 			$wp_session = WP_Session::get_instance();
