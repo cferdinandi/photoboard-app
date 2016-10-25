@@ -1,4 +1,4 @@
-# Photoboard App
+# [DEPRECATED] Photoboard App
 
 App functionality for Photoboard
 
